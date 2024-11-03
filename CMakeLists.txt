@@ -5,7 +5,7 @@ include(pico_sdk_import.cmake)
 
 include(pico_extras_import_optional.cmake)
 
-project(pico_emb C CXX ASM)
+project(pico_emb C CXX ASM )
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -30,4 +30,5 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 endif()
 
 # Codes subdir:
+add_subdirectory(freertos)
 add_subdirectory(main)
