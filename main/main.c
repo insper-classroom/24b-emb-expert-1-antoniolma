@@ -22,6 +22,24 @@ const int PWM_1_PIN = 15;
 QueueHandle_t xQueueServoX;
 QueueHandle_t xQueueServoY;
 
+uint16_t filtro(uint16_t data, uint16_t *Vetor) {
+    uint16_t media = 0;
+    uint16_t temp[5];
+
+    for (int i = 0; i < 4; i++) {
+        temp[i+1] = Vetor[i];
+        media += Vetor[i];
+    }
+    temp[0] = data;
+    media = (data + media)/5;
+
+    for (int i = 0; i < 5; i++) {
+        Vetor[i] = temp[i];
+    }
+
+    return media;
+}
+
 void adc_1_task(void *p) {
     adc_init();
     adc_gpio_init(27);
@@ -30,32 +48,37 @@ void adc_1_task(void *p) {
     // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
     // const float conversion_factor = 3.3f / (1 << 12);   
 
+    uint16_t mediaMovel[5];
+
     // uint16_t result;
     uint16_t last_x_pulse = 0;
     uint16_t last_y_pulse = 0;
     while (1) {
-        adc_select_input(1); // Select ADC input 1 (GPIO27)
+        // LDR
+        adc_select_input(0); // Select ADC input 1 (GPIO27)
         uint16_t adc_read_x = adc_read();
         uint16_t servo_x_pulse = 400 + (adc_read_x * 2000) / 4095;
-
-        // printf("read x: %f\n", (float) adc_read_x);
         // printf("last x: %f\n", (float) last_x);
+        // printf("servo x: %f\n", (float) servo_x_pulse);
+
         if ((servo_x_pulse > last_x_pulse && (servo_x_pulse - last_x_pulse) >= 5) ||
             (servo_x_pulse < last_x_pulse && (last_x_pulse - servo_x_pulse) >= 5)) {
-            // printf("servo x: %f\n", (float) servo_x_pulse);
             xQueueSend(xQueueServoX, &servo_x_pulse, 0);
             last_x_pulse = servo_x_pulse;
             // printf("new X\n");
         }
 
-        adc_select_input(0); // Select ADC input 0 (GPIO26)
+
+        // SHARP
+        adc_select_input(1); // Select ADC input 0 (GPIO26)
         uint16_t adc_read_y = adc_read();
-        uint16_t servo_y_pulse = 400 + (adc_read_y * 2000) / 4095;
+        uint16_t media = filtro(adc_read_y, mediaMovel);
+        uint16_t servo_y_pulse = 400 + (media * 2200) / 4095;
         // printf("read y: %f\n", (float) adc_read_y);
         // printf("last y: %f\n", (float) last_y);
+        // printf("servo y: %f\n", (float) servo_y_pulse);
         if ((servo_y_pulse > last_y_pulse && (servo_y_pulse - last_y_pulse) >= 5) ||
             (servo_y_pulse < last_y_pulse && (last_y_pulse - servo_y_pulse) >= 5)) {
-            // printf("servo y: %f\n", (float) servo_y_pulse);
             xQueueSend(xQueueServoY, &servo_y_pulse, 0);
             last_y_pulse = servo_y_pulse;
             // printf("new Y\n");
